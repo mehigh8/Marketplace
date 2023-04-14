@@ -35,19 +35,22 @@ class Consumer(Thread):
         Thread.__init__(self, **kwargs)
         self.carts = carts
         self.marketplace = marketplace
-        self.retry_Wait_time = retry_wait_time
+        self.retry_wait_time = retry_wait_time
         self.name = kwargs.get("name")
 
     def run(self):
         for cart in self.carts:
             cart_id = self.marketplace.new_cart()
             for operation in cart:
-                for i in range(operation["quantity"]):
+                quantity = operation["quantity"]
+                while quantity > 0:
                     if operation["type"] == "add":
                         while not self.marketplace.add_to_cart(cart_id, operation["product"]):
-                            sleep(self.retry_Wait_time)
+                            sleep(self.retry_wait_time)
                     else:
                         self.marketplace.remove_from_cart(cart_id, operation["product"])
+                    quantity -= 1
             products = self.marketplace.place_order(cart_id)
             for product in products:
-                print(self.name + " bought " + str(product))
+                with self.marketplace.print_lock:
+                    print(self.name + " bought " + str(product))

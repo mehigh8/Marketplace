@@ -5,7 +5,7 @@ Computer Systems Architecture Course
 Assignment 1
 March 2021
 """
-from threading import *
+from threading import Lock
 
 
 class Marketplace:
@@ -25,18 +25,17 @@ class Marketplace:
         self.products = []
         self.cart_count = 0
         self.products_lock = Lock()
-        self.producers_lock = Lock()
-        self.consumers_lock = Lock()
         self.register_lock = Lock()
+        self.print_lock = Lock()
 
     def register_producer(self):
         """
         Returns an id for the producer that calls this.
         """
         with self.register_lock:
-            id = len(self.producer_queues)
+            producer_id = len(self.producer_queues)
             self.producer_queues.append(self.queue_size_per_producer)
-            return id
+            return producer_id
 
     def publish(self, producer_id, product):
         """
@@ -50,14 +49,11 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again.
         """
-        with self.producers_lock:
-            with self.products_lock:
-                if self.producer_queues[producer_id] > 0:
-                    self.products.append([product, -1, producer_id])
-                    self.producer_queues[producer_id] -= 1
-                    return True
-                else:
-                    return False
+        if self.producer_queues[producer_id] > 0:
+            self.products.append([product, -1, producer_id])
+            self.producer_queues[producer_id] -= 1
+            return True
+        return False
 
     def new_cart(self):
         """
@@ -81,13 +77,12 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again
         """
-        with self.consumers_lock:
-            with self.products_lock:
-                for current_product in self.products:
-                    if current_product[0] == product and current_product[1] == -1:
-                        current_product[1] = cart_id
-                        return True
-                return False
+        with self.products_lock:
+            for current_product in self.products:
+                if current_product[0] == product and current_product[1] == -1:
+                    current_product[1] = cart_id
+                    return True
+            return False
 
     def remove_from_cart(self, cart_id, product):
         """
@@ -99,13 +94,11 @@ class Marketplace:
         :type product: Product
         :param product: the product to remove from cart
         """
-        with self.consumers_lock:
-            with self.products_lock:
-                for current_product in self.products:
-                    if current_product[0] == product and current_product[1] == cart_id:
-                        current_product[1] = -1
-                        return
-
+        with self.products_lock:
+            for current_product in self.products:
+                if current_product[0] == product and current_product[1] == cart_id:
+                    current_product[1] = -1
+                    return
 
     def place_order(self, cart_id):
         """
@@ -115,12 +108,14 @@ class Marketplace:
         :param cart_id: id cart
         """
         return_products = []
-        with self.consumers_lock:
-            with self.products_lock:
-                for current_product in self.products:
-                    if current_product[1] == cart_id:
-                        with self.producers_lock:
-                            self.producer_queues[current_product[2]] += 1
-                        return_products.append(current_product[0])
-                        self.products.remove(current_product)
+        with self.products_lock:
+            initial_len = len(self.products)
+            removed_products = 0
+            for i in range(initial_len):
+                current_product = self.products[i - removed_products]
+                if current_product[1] == cart_id:
+                    self.producer_queues[current_product[2]] += 1
+                    return_products.append(current_product[0])
+                    self.products.remove(current_product)
+                    removed_products += 1
         return return_products
