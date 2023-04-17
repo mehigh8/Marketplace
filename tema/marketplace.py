@@ -6,6 +6,8 @@ Assignment 1
 March 2021
 """
 from threading import Lock
+import unittest
+from product import Product, Coffee, Tea
 
 
 class Marketplace:
@@ -119,3 +121,62 @@ class Marketplace:
                     self.products.remove(current_product)
                     removed_products += 1
         return return_products
+
+
+class TestMarketplace(unittest.TestCase):
+    def setUp(self):
+        self.marketplace = Marketplace(2)
+
+    def test_default_values(self):
+        self.assertEqual(self.marketplace.queue_size_per_producer, 2, "incorrect default value, correct: 2")
+        self.assertEqual(len(self.marketplace.producer_queues), 0, "incorrect default size, correct: 0")
+        self.assertEqual(len(self.marketplace.products), 0, "incorrect default size, correct: 0")
+        self.assertEqual(self.marketplace.cart_count, 0, "incorrect default value, correct: 0")
+
+    def test_register_producer(self):
+        self.assertEqual(self.marketplace.register_producer(), 0, "wrong producer id, correct: 0")
+        self.assertEqual(self.marketplace.register_producer(), 1, "wrong producer id, correct: 1")
+
+    def test_publish(self):
+        producer_id = self.marketplace.register_producer()
+        products = [Coffee(name="Indonezia", acidity="5.05", roast_level="MEDIUM", price=1),
+                    Coffee(name="Brasil", acidity="5.09", roast_level="MEDIUM", price=7),
+                    Tea(name="Linden", type="Herbal", price=9)]
+        self.assertTrue(self.marketplace.publish(producer_id, products[0]), "incorrect result, correct: True")
+        self.assertEqual(self.marketplace.products[0], [products[0], -1, producer_id], "published incorrectly")
+        self.assertTrue(self.marketplace.publish(producer_id, products[1]), "incorrect result, correct: True")
+        self.assertFalse(self.marketplace.publish(producer_id, products[2]), "incorrect result, correct: False")
+
+    def test_new_cart(self):
+        self.assertEqual(self.marketplace.new_cart(), 0, "wrong producer id, correct: 0")
+        self.assertEqual(self.marketplace.new_cart(), 1, "wrong producer id, correct: 1")
+
+    def test_add_to_cart(self):
+        producer_id = self.marketplace.register_producer()
+        product = Coffee(name="Indonezia", acidity="5.05", roast_level="MEDIUM", price=1)
+        cart_id = self.marketplace.new_cart()
+        self.assertTrue(self.marketplace.publish(producer_id, product), "wrong publish result, correct: True")
+        self.assertTrue(self.marketplace.add_to_cart(cart_id, product), "wrong add_to_cart result, correct: True")
+        self.assertFalse(self.marketplace.add_to_cart(cart_id, product), "wrong add_to_cart result, correct: False")
+
+    def test_remove_from_cart(self):
+        producer_id = self.marketplace.register_producer()
+        product = Coffee(name="Indonezia", acidity="5.05", roast_level="MEDIUM", price=1)
+        cart_id = self.marketplace.new_cart()
+        self.assertTrue(self.marketplace.publish(producer_id, product), "wrong publish result, correct: True")
+        self.assertTrue(self.marketplace.add_to_cart(cart_id, product), "wrong add_to_cart result, correct: True")
+        self.marketplace.remove_from_cart(cart_id, product)
+        self.assertEqual(self.marketplace.products[0][1], -1, "didn't remove")
+
+    def test_place_order(self):
+        producer_id = self.marketplace.register_producer()
+        products = [Coffee(name="Indonezia", acidity="5.05", roast_level="MEDIUM", price=1),
+                    Coffee(name="Brasil", acidity="5.09", roast_level="MEDIUM", price=7)]
+
+        self.assertTrue(self.marketplace.publish(producer_id, products[0]), "wrong publish result, correct: True")
+        self.assertTrue(self.marketplace.publish(producer_id, products[1]), "wrong publish result, correct: True")
+
+        cart_id = self.marketplace.new_cart()
+        self.assertTrue(self.marketplace.add_to_cart(cart_id, products[1]), "wrong add_to_cart result, correct: True")
+        self.assertEqual(self.marketplace.place_order(cart_id), [products[1]],
+                         "incorrect result, correct: brasil coffee")
