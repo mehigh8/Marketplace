@@ -1,0 +1,11 @@
+[17.04.2023-13:27:44] NEW Marketplace: 2
+[17.04.2023-13:27:44] IN register_producer
+[17.04.2023-13:27:44] OUT register_producer: 0
+[17.04.2023-13:27:44] IN new_cart
+[17.04.2023-13:27:44] OUT new_cart: 0
+[17.04.2023-13:27:44] IN publish: 0, Espresso
+[17.04.2023-13:27:44] OUT publish: True
+[17.04.2023-13:27:44] IN add_to_cart: 0, Espresso
+[17.04.2023-13:27:44] OUT add_to_cart: True
+[17.04.2023-13:27:44] IN remove_from_cart: 0, Espresso
+[17.04.2023-13:27:44] OUT remove_from_cart
