@@ -40,11 +40,16 @@ class Producer(Thread):
 
     def run(self):
         self.producer_id = self.marketplace.register_producer()
+        # Each producer has an infinite loop, in which he publishes his products.
         while True:
             for product in self.products:
+                # For every product, the producer also gets a quantity.
                 quantity = product[1]
                 while quantity > 0:
+                    # If the producer can't publish, he waits some time and tries again.
                     while not self.marketplace.publish(self.producer_id, product[0]):
                         sleep(self.republish_wait_time)
+                    # If he manages to publish the products he has to wait
+                    # the product's producing time.
                     sleep(product[2])
                     quantity -= 1

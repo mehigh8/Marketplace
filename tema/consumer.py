@@ -40,17 +40,23 @@ class Consumer(Thread):
 
     def run(self):
         for cart in self.carts:
+            # For every cart, the consumer gets a new id.
             cart_id = self.marketplace.new_cart()
+            # Then, he goes through the operations of add/remove.
             for operation in cart:
                 quantity = operation["quantity"]
                 while quantity > 0:
                     if operation["type"] == "add":
+                        # If the user can't add, he has to wait some time and try again.
                         while not self.marketplace.add_to_cart(cart_id, operation["product"]):
                             sleep(self.retry_wait_time)
                     else:
                         self.marketplace.remove_from_cart(cart_id, operation["product"])
                     quantity -= 1
+            # After all the operations of the cart, the consumer places an order.
             products = self.marketplace.place_order(cart_id)
+            # We have to print the consumer's order.
             for product in products:
+                # We use a lock to ensure that the prints don't mess with each other.
                 with self.marketplace.print_lock:
                     print(self.name + " bought " + str(product))
