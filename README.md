@@ -1,1 +1,87 @@
-# Tema1ASC
+# Marketplace
+<b>Rosu Mihai Cosmin 333CA</b>
+
+Homework for Computer Systems Architecture course.
+
+Implementation details:
+- Marketplace:
+  1. __init__: Here are declared all the variables from the Marketplace class.
+    - queue_size_per_producer: The maximum number of products a producer can have in the
+    marketplace at a given moment.
+    - producer_queues: A list storing how many free spaces for products every producer has.
+    - products: A list of tuples (['product', 'cart_id', 'producer_id']) representing the
+    marketplace buffer. The tuple represents the following: 'product' was produced by 'producer_id'
+    and is currently in 'cart_id'. 'cart_id' can also be -1 meaning the 'product' is unowned (is
+    not currently in a cart).
+    - cart_count: The total number of carts up to a given moment.
+    - products_lock: Lock used when modifying the contents of the products buffer.
+    - register_lock: Lock used when registering a new producer/cart.
+    - print_lock: Lock used for printing to ensure no overlaps.
+    - logger: Logger used to make the logs.
+
+  2. register_producer: Method returning a new id for producers.
+    - Uses the register_lock, checks the current size of the producer_queues list to determine the
+    current number of producers and returns it as the new id (producer ids start from 0). Also
+    appends a new element to producer_queues of value equal to queue_size_per_producer.
+
+  3. publish: Method that tries to publish a product from a producer to the marketplace.
+    - Firstly, it checks if the producer has space to add a new product, in which case it adds a
+    new tuple to the marketplace buffer (product, -1, producer_id), decrements the corresponding
+    producer queue and returns True. If not, it returns False.
+    - Doesn't use locks since the list's append method is thread safe.
+
+  4. new_cart: Method returning a new id for carts.
+  	- Uses the register_lock, increments the number of carts and returns the number of carts prior
+  	to the incrementation (cart ids also start from 0).
+
+  5. add_to_cart: Method that tries to add a product to a given cart.
+    - Uses the products_lock because of place_order (if a consumer places an order and some
+    products are removed from the buffer at the same time this method iterates through them, it
+    could lead to products being skipped).
+    - We search through the buffer for the given product. If we find it, and it is unowned (cart_id
+    is -1), we change the cart_id to the given one and return True. If no product is found matching
+    these two conditions, we return False.
+
+  6. remove_from_cart: Method that removes a product from the given cart.
+    - Uses the products_lock (same reason as add_to_cart).
+    - We search for the given product, and, if we find it, we check if it is in the given cart, in
+    which case we change the cart_id to -1.
+
+  7. place_order: Method that removes all products that are in a given cart from the buffer, and
+  returns them.
+    - Uses the products_lock (same reason as add_to_cart).
+    - We iterate through the buffer, and for every product that is in the given cart, we remove it,
+    increment the corresponding producer queue, and add it to a temporary list which will be
+    returned after we finish iterating.
+
+- Producer: 
+  - We get an id, and start iterating through the products received in __init__. For every product
+  we try to publish it 'quantity' times to marketplace. If a publish fails we wait some time and
+  try again. If we succeed, we have to wait the product's wait time. This iteration through the
+  products happens infinitely.
+
+- Consumer:
+  - We iterate through the carts. For every cart, we get a new cart_id and start iterating through
+  its operations. For 'add' operations we try to add the product to the cart. If we fail, we have
+  to wait some time. 'remove' operations can't fail. For both types, we add/remove said product
+  'quantity' times. After we finish the current cart's operations, we place an order, and print
+  the returned products using the print_lock from marketplace.
+
+Unit testing:
+  - I used the setUp function to create a new marketplace before every test. Afterwards there is a
+  test for every method in the Marketplace class which checks the return value, and sometimes
+  checks actual changes in the marketplace fields. Some tests (such as
+  add_to_cart/remove_from_cart/place_order) depend on other operations so they also check for them
+  (for add_to_cart I also check if the publish worked).
+
+Logging:
+  - In the Marketplace's __init__ method the logger is set up so that it uses the
+  RotatingFileHandler and gmtime. It is also set up so that every time it is run it does a rollover
+  so that a new log file is made (every test has its log file).
+  - Every log follows the following format: [TIME] INFO LOCATION: PARAMETERS/RETURNS.
+  - For __init__ there is a log printed at the end mentioning the creation of a new instance of
+  Marketplace (INFO = NEW).
+  - For every other method, the logger prints a message right after entering, mentioning the
+  parameters (INFO = IN), and right before exiting, mentioning the return value (INFO = OUT).
+  - For publish, add_to_cart, remove_from_cart and place_order we also check if the ids are valid,
+  and if they are not (they are too big/too small) the logger prints an error (INFO = ERROR).
